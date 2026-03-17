@@ -178,3 +178,13 @@ def export_pdf(request):
     response['Content-Disposition'] = 'attachment; filename="VoltGuard_Schedule.pdf"'
     
     return response
+
+def create_project(request):
+    if request.method == 'POST':
+        name = request.POST.get('name', 'New Project').strip()
+        if not name:
+            name = 'New Project'
+        project = Project.objects.create(name=name)
+        return redirect(f"/?project_id={project.id}")
+    return redirect('dashboard')
+

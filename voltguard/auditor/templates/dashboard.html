@@ -10,9 +10,13 @@
                 <svg class="w-5 h-5 mr-2 text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
                 Saved Projects
             </h3>
-            <a href="{% url 'dashboard' %}" class="block w-full text-center py-2 mb-4 bg-brand-500/10 text-brand-300 rounded-lg border border-brand-500/30 hover:bg-brand-500/20 transition-colors text-sm font-bold shadow-inner">
-                + New Project
-            </a>
+            <form action="{% url 'create_project' %}" method="POST" class="mb-5 flex gap-2">
+                {% csrf_token %}
+                <input type="text" name="name" required placeholder="Project Name..." class="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-500 transition-colors">
+                <button type="submit" class="px-3 bg-brand-500 hover:bg-brand-400 text-white rounded-lg font-bold transition-colors text-xl leading-none flex items-center justify-center shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+                    +
+                </button>
+            </form>
             
             <ul class="space-y-3">
                 {% for p in projects %}
