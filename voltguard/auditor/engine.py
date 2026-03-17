@@ -4,6 +4,12 @@ Core calculating module for all electrical formulas, including Power Factor.
 """
 import math
 
+def calculate_demand_load(total_power, diversity_factor=0.8):
+    """
+    Calculate practical Demand Load by applying a diversity factor.
+    """
+    return total_power * diversity_factor
+
 def calculate_current(power_watts, power_factor=1.0, voltage=230.0):
     """
     Calculate Total Current.
@@ -34,21 +40,31 @@ def calculate_power_triangle(power_watts, power_factor):
     
     return s, q
 
-def select_mcb(current):
+def select_mcb(current, appliance_type='Standard'):
     """
-    Select MCB rating implementing the 125% Safety Rule for continuous loads.
-    Formula: Minimum MCB = I * 1.25
-    Standard Ratings: 6A, 10A, 16A, 20A, 25A, 32A, 40A, 63A
+    Select MCB rating and Type (B or C).
+    Motor/AC appliances use a 125% Safety Factor and 'Type C'.
+    Lights use 'Type B'.
     """
-    safety_current = float(current) * 1.25
+    if appliance_type == 'Motor/AC':
+        safety_current = float(current) * 1.25
+        mcb_type = 'C'
+    elif appliance_type == 'Light':
+        safety_current = float(current) * 1.0
+        mcb_type = 'B'
+    else:
+        # Standard load
+        safety_current = float(current) * 1.25
+        mcb_type = 'B'
+        
     standard_ratings = [6, 10, 16, 20, 25, 32, 40, 63]
     
     for rating in standard_ratings:
         if rating >= safety_current:
-            return rating
+            return rating, mcb_type
     
     # Exceeds standard ratings, returning max
-    return 63
+    return 63, mcb_type
 
 def select_wire_gauge(current):
     """
@@ -89,39 +105,45 @@ def calculate_voltage_drop(length_m, current, resistance_per_km, voltage=230.0):
 
 def balance_phases(appliances):
     """
-    3-Phase Balancer: If total load > 7kW, distribute appliances across R, Y, B phases
+    3-Phase Balancer: If total load > 7kW, distribute appliances across L1, L2, L3 phases
     to minimize neutral current.
     Uses a greedy descending algorithm based on power.
     
     appliances: list of Appliance model instances or dictionaries with 'name' and 'power_watts'.
-    Returns: dictionary with R, Y, B lists of appliances and 'requires_3_phase' boolean.
+    Returns: dictionary with L1, L2, L3 lists of appliances and 'requires_3_phase' boolean.
     """
-    total_power = sum(app.power_watts for app in appliances)
+    # Handle total power taking into account quantity if present via a helper
+    def get_power(app):
+        if hasattr(app, 'quantity'):
+            return app.power_watts * app.quantity
+        return app.power_watts
+
+    total_power = sum(get_power(app) for app in appliances)
     
     if total_power <= 7000:
         return {
             'requires_3_phase': False,
-            'R': appliances,
-            'Y': [],
-            'B': [],
-            'Loads': {'R': total_power, 'Y': 0, 'B': 0}
+            'L1': appliances,
+            'L2': [],
+            'L3': [],
+            'Loads': {'L1': total_power, 'L2': 0, 'L3': 0}
         }
         
     # Sort appliances by power descending
-    sorted_apps = sorted(appliances, key=lambda x: x.power_watts, reverse=True)
-    phases = {'R': [], 'Y': [], 'B': []}
-    phase_loads = {'R': 0, 'Y': 0, 'B': 0}
+    sorted_apps = sorted(appliances, key=lambda x: get_power(x), reverse=True)
+    phases = {'L1': [], 'L2': [], 'L3': []}
+    phase_loads = {'L1': 0, 'L2': 0, 'L3': 0}
     
     for app in sorted_apps:
         # Find phase with minimum load
         min_phase = min(phase_loads, key=phase_loads.get)
         phases[min_phase].append(app)
-        phase_loads[min_phase] += app.power_watts
+        phase_loads[min_phase] += get_power(app)
         
     return {
         'requires_3_phase': True,
-        'R': phases['R'],
-        'Y': phases['Y'],
-        'B': phases['B'],
+        'L1': phases['L1'],
+        'L2': phases['L2'],
+        'L3': phases['L3'],
         'Loads': phase_loads
     }

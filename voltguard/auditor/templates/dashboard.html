@@ -1,10 +1,46 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
     
-    <!-- Left Column: Controls & Add Appliance -->
-    <div class="space-y-6 lg:col-span-1">
+    <!-- Left Sidebar: Saved Projects -->
+    <div class="lg:col-span-1 space-y-6">
+        <div class="glass-panel rounded-3xl p-6 h-full border-t border-brand-500/20 shadow-[0_4px_30px_rgba(16,185,129,0.1)]">
+            <h3 class="text-lg font-bold text-white mb-4 font-heading flex items-center">
+                <svg class="w-5 h-5 mr-2 text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                Saved Projects
+            </h3>
+            <a href="{% url 'dashboard' %}" class="block w-full text-center py-2 mb-4 bg-brand-500/10 text-brand-300 rounded-lg border border-brand-500/30 hover:bg-brand-500/20 transition-colors text-sm font-bold shadow-inner">
+                + New Project
+            </a>
+            
+            <ul class="space-y-3">
+                {% for p in projects %}
+                <li>
+                    <a href="?project_id={{ p.id }}" class="block p-4 rounded-2xl transition-all border relative overflow-hidden group {% if p.id == project.id %}bg-brand-500/10 border-brand-500/50 text-brand-300 shadow-[0_0_15px_rgba(16,185,129,0.15)]{% else %}bg-slate-900/40 border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-800/80 hover:border-slate-600{% endif %}">
+                        {% if p.id == project.id %}<div class="absolute left-0 top-0 h-full w-1 bg-brand-500 shadow-[0_0_10px_#10b981]"></div>{% endif %}
+                        <div class="font-bold text-[15px] truncate max-w-full font-heading">{{ p.name }}</div>
+                        <div class="flex justify-between items-center mt-2">
+                            <div class="text-[10px] uppercase tracking-wider font-bold {% if p.id == project.id %}text-brand-400/80{% else %}text-slate-500{% endif %}">
+                                {{ p.total_load|floatformat:1 }}W
+                            </div>
+                            <div class="text-[9px] uppercase font-bold px-2 py-0.5 rounded-md {% if p.id == project.id %}bg-brand-500/20 text-brand-300 border border-brand-500/30{% else %}bg-slate-800 text-slate-400 border border-slate-700{% endif %}">
+                                {{ p.phase_type }}
+                            </div>
+                        </div>
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    
+    <!-- Main Dashboard Area -->
+    <div class="lg:col-span-3">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- Left Column: Controls & Add Appliance -->
+            <div class="space-y-6 lg:col-span-1">
         
         <div class="glass-panel rounded-3xl p-7 transition-all duration-300 hover:shadow-[0_0_30px_rgba(16,185,129,0.15)] relative overflow-hidden group">
             <div class="absolute top-0 right-0 w-32 h-32 bg-brand-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-brand-500/20 transition-all duration-500"></div>
@@ -16,9 +52,27 @@
                 Add New Load
             </h2>
             <form action="{% url 'add_appliance' %}" method="POST" class="space-y-5 relative z-10">
+                {% csrf_token %}
+                <input type="hidden" name="project_id" value="{{ project.id }}">
+                
                 <div class="group/input">
                     <label class="block text-sm font-medium text-slate-300 mb-1.5 transition-colors group-focus-within/input:text-brand-400">Appliance Name</label>
                     <input type="text" name="name" required class="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all placeholder:text-slate-500" placeholder="e.g. 1.5T AC">
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="group/input">
+                        <label class="block text-sm font-medium text-slate-300 mb-1.5 transition-colors group-focus-within/input:text-brand-400">Quantity</label>
+                        <input type="number" min="1" step="1" name="quantity" required class="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all placeholder:text-slate-500 font-mono" value="1">
+                    </div>
+                    <div class="group/input">
+                        <label class="block text-sm font-medium text-slate-300 mb-1.5 transition-colors group-focus-within/input:text-brand-400">Type</label>
+                        <select name="appliance_type" class="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all appearance-none">
+                            <option value="Standard">Standard</option>
+                            <option value="Motor/AC">Motor/AC</option>
+                            <option value="Light">Light</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div class="group/input">
@@ -34,13 +88,6 @@
                             <input type="number" step="0.01" max="1.0" min="0.1" name="power_factor" class="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all placeholder:text-slate-500 font-mono" placeholder="0.9" value="1.0">
                             <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">PF</span>
                         </div>
-                    </div>
-                </div>
-                <div class="group/input">
-                    <label class="block text-sm font-medium text-slate-300 mb-1.5 transition-colors group-focus-within/input:text-brand-400">Power (Watts)</label>
-                    <div class="relative">
-                        <input type="number" step="0.1" name="power_watts" required class="w-full bg-slate-900/50 border border-slate-700 rounded-xl pl-4 pr-12 py-3 text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all placeholder:text-slate-500 font-mono" placeholder="e.g. 1500">
-                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">W</span>
                     </div>
                 </div>
                 <div class="group/input">
@@ -65,15 +112,20 @@
             </div>
             <h3 class="font-bold text-white mb-2 font-heading relative z-10 text-xl">Export Schedule</h3>
             <p class="text-sm text-slate-400 mb-6 relative z-10 leading-relaxed">Generate a professional PDF report with engineering calculations.</p>
-            <a href="{% url 'export_pdf' %}" class="relative z-10 w-full py-3 border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 hover:text-indigo-200 rounded-xl transition-all font-semibold cursor-pointer block hover:border-indigo-400/50 hover:shadow-[0_0_15px_rgba(99,102,241,0.2)]">Download PDF Report</a>
+            <a href="{% url 'export_pdf' %}?project_id={{ project.id }}" class="relative z-10 w-full py-3 border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 hover:text-indigo-200 rounded-xl transition-all font-semibold cursor-pointer block hover:border-indigo-400/50 hover:shadow-[0_0_15px_rgba(99,102,241,0.2)]">Download PDF Report</a>
         </div>
     </div>
 
     <!-- Right Column: System Health & Schedule -->
     <div class="lg:col-span-2 space-y-6">
         
+        <h2 class="text-3xl font-black text-white font-heading tracking-tight mb-4 flex items-center">
+            <span class="bg-clip-text text-transparent bg-gradient-to-r from-brand-400 to-emerald-300">{{ project.name }}</span>
+            <span class="ml-4 text-sm font-medium bg-slate-800 text-slate-400 px-3 py-1 rounded-full border border-slate-700">Live Analysis</span>
+        </h2>
+        
         <!-- System Health Overview -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
             <!-- Load Card -->
             <div class="glass-panel rounded-3xl p-5 relative overflow-hidden group hover:border-brand-500/30 transition-colors">
                 <div class="absolute -right-6 -top-6 w-32 h-32 bg-brand-500/20 rounded-full blur-2xl group-hover:bg-brand-500/30 transition-all duration-500"></div>
@@ -99,6 +151,19 @@
                         <p class="text-3xl font-black text-rose-500 font-heading tracking-tight mb-1">{{ system_pf|floatformat:3 }}</p>
                         <span class="px-2 py-0.5 rounded-md text-[9px] uppercase tracking-wider font-bold bg-rose-500/10 text-rose-300 border border-rose-500/20 animate-pulse">Needs Cap. Bank</span>
                     {% endif %}
+                </div>
+            </div>
+            
+            <!-- Demand Load Card -->
+            <div class="glass-panel rounded-3xl p-5 relative overflow-hidden group hover:border-purple-500/30 transition-colors">
+                <div class="absolute -right-6 -top-6 w-32 h-32 bg-purple-500/20 rounded-full blur-2xl group-hover:bg-purple-500/30 transition-all duration-500"></div>
+                <p class="text-[10px] text-slate-400 font-bold tracking-widest uppercase mb-1">Demand Load</p>
+                <div class="flex flex-col items-start justify-center h-[calc(100%-1.5rem)] pb-1">
+                    <div class="flex items-baseline mb-1">
+                        <p class="text-3xl font-black text-purple-400 font-heading tracking-tight">{{ demand_load|floatformat:1 }}</p>
+                        <span class="text-sm text-purple-400 font-bold ml-1">W</span>
+                    </div>
+                    <span class="px-2 py-0.5 rounded-md text-[9px] uppercase tracking-wider font-bold bg-purple-500/10 text-purple-300 border border-purple-500/20">0.8 Diversity</span>
                 </div>
             </div>
             
@@ -162,18 +227,18 @@
             <div class="grid grid-cols-3 gap-4 lg:gap-6">
                 <div class="bg-slate-900/50 rounded-2xl p-4 border border-rose-500/20 relative overflow-hidden group">
                     <div class="absolute h-1 w-full bg-rose-500/50 top-0 left-0"></div>
-                    <p class="text-[11px] uppercase tracking-widest text-rose-400 font-bold mb-1">Row (R)</p>
-                    <p class="text-2xl font-black text-white font-mono">{{ phase_data.Loads.R|floatformat:1 }} <span class="text-sm text-slate-500 font-sans">W</span></p>
+                    <p class="text-[11px] uppercase tracking-widest text-rose-400 font-bold mb-1">Phase L1</p>
+                    <p class="text-2xl font-black text-white font-mono">{{ phase_data.Loads.L1|floatformat:1 }} <span class="text-sm text-slate-500 font-sans">W</span></p>
                 </div>
                 <div class="bg-slate-900/50 rounded-2xl p-4 border border-amber-500/20 relative overflow-hidden group">
                     <div class="absolute h-1 w-full bg-amber-500/50 top-0 left-0"></div>
-                    <p class="text-[11px] uppercase tracking-widest text-amber-400 font-bold mb-1">Yellow (Y)</p>
-                    <p class="text-2xl font-black text-white font-mono">{{ phase_data.Loads.Y|floatformat:1 }} <span class="text-sm text-slate-500 font-sans">W</span></p>
+                    <p class="text-[11px] uppercase tracking-widest text-amber-400 font-bold mb-1">Phase L2</p>
+                    <p class="text-2xl font-black text-white font-mono">{{ phase_data.Loads.L2|floatformat:1 }} <span class="text-sm text-slate-500 font-sans">W</span></p>
                 </div>
                 <div class="bg-slate-900/50 rounded-2xl p-4 border border-blue-500/20 relative overflow-hidden group">
                     <div class="absolute h-1 w-full bg-blue-500/50 top-0 left-0"></div>
-                    <p class="text-[11px] uppercase tracking-widest text-blue-400 font-bold mb-1">Blue (B)</p>
-                    <p class="text-2xl font-black text-white font-mono">{{ phase_data.Loads.B|floatformat:1 }} <span class="text-sm text-slate-500 font-sans">W</span></p>
+                    <p class="text-[11px] uppercase tracking-widest text-blue-400 font-bold mb-1">Phase L3</p>
+                    <p class="text-2xl font-black text-white font-mono">{{ phase_data.Loads.L3|floatformat:1 }} <span class="text-sm text-slate-500 font-sans">W</span></p>
                 </div>
             </div>
         </div>
@@ -185,7 +250,7 @@
                 <div class="absolute inset-0 bg-gradient-to-r from-brand-500/5 to-transparent z-0"></div>
                 <h3 class="text-white font-bold text-lg font-heading tracking-wide relative z-10 flex items-center">
                     <div class="w-2 h-6 bg-brand-500 rounded-full mr-3"></div>
-                    Wiring Schedule ($V_{drop}$ & Ampacity)
+                    Wiring Schedule (Voltage Drop & Ampacity)
                 </h3>
                 <span class="relative z-10 text-xs text-brand-300/80 bg-brand-500/10 px-3 py-1.5 rounded-lg border border-brand-500/20 font-mono tracking-wider font-semibold">I = P/V</span>
             </div>
@@ -194,6 +259,7 @@
                     <thead class="bg-slate-900/80 text-[10px] uppercase text-slate-400 border-b border-white/5 tracking-wider font-bold">
                         <tr>
                             <th scope="col" class="px-8 py-4">Appliance</th>
+                            <th scope="col" class="px-4 py-4 text-center">Qty</th>
                             <th scope="col" class="px-6 py-4">Load / Dist.</th>
                             <th scope="col" class="px-6 py-4">Current (I)</th>
                             <th scope="col" class="px-6 py-4">Req. MCB</th>
@@ -205,14 +271,21 @@
                     <tbody class="divide-y divide-white/5">
                         {% for item in appliances %}
                         <tr class="hover:bg-slate-800/50 transition-colors group">
-                            <td class="px-8 py-5 font-bold text-white group-hover:text-brand-300 transition-colors">{{ item.appliance.name }}</td>
+                            <td class="px-8 py-5">
+                                <span class="font-bold text-white group-hover:text-brand-300 transition-colors block">{{ item.appliance.name }}</span>
+                                <span class="text-[10px] text-slate-400 uppercase tracking-wider">{{ item.appliance.appliance_type }}</span>
+                            </td>
+                            <td class="px-4 py-5 text-center font-bold text-indigo-400 bg-indigo-500/5 font-mono shadow-inner rounded-md m-2">{{ item.appliance.quantity }}</td>
                             <td class="px-6 py-5">
-                                <span class="font-mono text-white">{{ item.appliance.power_watts }}</span> W
+                                <span class="font-mono text-white">{{ item.circuit_watts }}</span> W
                                 <span class="text-[10px] text-slate-500 block mt-0.5 uppercase tracking-wider">L: <span class="font-mono text-slate-400">{{ item.appliance.length_m }}</span>m | P.F: <span class="font-mono text-slate-400">{{ item.appliance.power_factor }}</span></span>
                             </td>
                             <td class="px-6 py-5 font-mono text-brand-400 font-bold bg-brand-500/5">{{ item.current }} A</td>
                             <td class="px-6 py-5">
-                                <span class="bg-slate-900 shadow-inner text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 font-mono font-medium inline-block">{{ item.mcb }} A</span>
+                                <div class="flex flex-col items-start gap-1">
+                                    <span class="bg-slate-900 shadow-inner text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 font-mono font-medium inline-block">{{ item.mcb }} A</span>
+                                    <span class="text-[9px] uppercase tracking-wider font-bold !px-2 !py-0.5 rounded {% if item.mcb_type == 'C' %}bg-amber-500/20 text-amber-300 border border-amber-500/30{% else %}bg-blue-500/20 text-blue-300 border border-blue-500/30{% endif %}">Type {{ item.mcb_type }}</span>
+                                </div>
                             </td>
                             <td class="px-6 py-5 font-mono">{{ item.wire_size|floatformat:1 }} <span class="text-xs text-slate-500">mm²</span></td>
                             <td class="px-6 py-5">
@@ -254,7 +327,6 @@
                 </table>
             </div>
         </div>
-
     </div>
 </div>
 {% endblock %}

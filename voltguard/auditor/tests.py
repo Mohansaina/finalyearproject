@@ -17,11 +17,14 @@ class EngineTests(TestCase):
         
     def test_select_mcb(self):
         # I = 10A -> Safety I = 12.5A -> nearest standard > 12.5 is 16A
-        self.assertEqual(select_mcb(10.0), 16)
+        self.assertEqual(select_mcb(10.0)[0], 16)
         # I = 20A -> Safety I = 25A -> nearest standard is 25A
-        self.assertEqual(select_mcb(20.0), 25)
+        self.assertEqual(select_mcb(20.0)[0], 25)
         # I = 35A -> Safety I = 43.75 -> nearest standard is 63A
-        self.assertEqual(select_mcb(35.0), 63)
+        self.assertEqual(select_mcb(35.0)[0], 63)
+        # Test MCB Types
+        self.assertEqual(select_mcb(10.0, 'Motor/AC')[1], 'C')
+        self.assertEqual(select_mcb(10.0, 'Light')[1], 'B')
         
     def test_select_wire_gauge(self):
         # 10A should return 1.0mm2
@@ -50,8 +53,8 @@ class EngineTests(TestCase):
         # Heater (5000) goes to R
         # AC 1 (3000) goes to Y
         # AC 2 (3000) goes to B
-        self.assertEqual(result['Loads']['Y'], 3000)
-        self.assertEqual(result['Loads']['B'], 3000)
+        self.assertEqual(result['Loads']['L2'], 3000)
+        self.assertEqual(result['Loads']['L3'], 3000)
 
 class ViewTests(TestCase):
     def test_export_pdf_view(self):

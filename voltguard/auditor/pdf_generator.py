@@ -5,7 +5,7 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
-def generate_schedule_pdf(project_name, appliances, total_power, phase_data, system_pf=1.0):
+def generate_schedule_pdf(project_name, appliances, total_power, phase_data, system_pf=1.0, demand_load=0.0):
     """
     Generates a PDF using reportlab with all calculations, warnings, and Phase Distribution
     """
@@ -21,6 +21,7 @@ def generate_schedule_pdf(project_name, appliances, total_power, phase_data, sys
     
     # System Overview
     elements.append(Paragraph(f"<b>Total Connected Real Load:</b> {round(total_power, 1)} W", styles['Normal']))
+    elements.append(Paragraph(f"<b>Demand Load (0.8 Diversity Factor):</b> {round(demand_load, 1)} W", styles['Normal']))
     
     # System PF Status
     pf_color = "green" if system_pf >= 0.9 else ("#b45309" if system_pf >= 0.8 else "red")
@@ -34,7 +35,7 @@ def generate_schedule_pdf(project_name, appliances, total_power, phase_data, sys
     elements.append(Spacer(1, 15))
     
     # Appliances Table
-    data = [['Appliance', 'S (VA)', 'P.F.', 'Current (A)', 'MCB (A)', 'Wire (mm²)', 'V. Drop (V)', 'Status']]
+    data = [['Appliance', 'Qty', 'S (VA)', 'P.F.', 'Current (A)', 'MCB', 'Wire', 'V.Drop', 'Status']]
     
     has_failure = False
     
@@ -45,17 +46,18 @@ def generate_schedule_pdf(project_name, appliances, total_power, phase_data, sys
             
         data.append([
             item['appliance'].name,
+            f"{item['appliance'].quantity}",
             f"{item['apparent_power']}",
             f"{item['appliance'].power_factor}",
             f"{item['current']}",
-            f"{item['mcb']}",
-            f"{item['wire_size']}",
-            f"{item['v_drop']} ({item['v_drop_pct']}%)",
+            f"{item['mcb']}A ({item['mcb_type']})",
+            f"{item['wire_size']}mm²",
+            f"{item['v_drop']}V ({item['v_drop_pct']}%)",
             status_text
         ])
         
     # Create Table
-    table = Table(data, colWidths=[100, 60, 40, 60, 40, 60, 80, 80])
+    table = Table(data, colWidths=[90, 30, 50, 30, 60, 50, 60, 80, 70])
     
     table_style = TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1e293b')),
@@ -69,9 +71,9 @@ def generate_schedule_pdf(project_name, appliances, total_power, phase_data, sys
     
     # Highlight failures
     for i, row in enumerate(data[1:], 1):
-        if row[7] == "FAILURE (>3%)":
-            table_style.add('TEXTCOLOR', (7, i), (7, i), colors.red)
-            table_style.add('FONTNAME', (7, i), (7, i), 'Helvetica-Bold')
+        if row[8] == "FAILURE (>3%)":
+            table_style.add('TEXTCOLOR', (8, i), (8, i), colors.red)
+            table_style.add('FONTNAME', (8, i), (8, i), 'Helvetica-Bold')
             
     table.setStyle(table_style)
     elements.append(table)
@@ -86,10 +88,10 @@ def generate_schedule_pdf(project_name, appliances, total_power, phase_data, sys
     # Phase Balancing Details
     if phase_data.get('requires_3_phase'):
         elements.append(Paragraph("<b>3-Phase Load Distribution:</b>", styles['Heading3']))
-        loads = phase_data.get('Loads', {'R': 0, 'Y': 0, 'B': 0})
-        phase_text = f"Red (R) Phase: {round(loads.get('R', 0), 1)}W | " \
-                     f"Yellow (Y) Phase: {round(loads.get('Y', 0), 1)}W | " \
-                     f"Blue (B) Phase: {round(loads.get('B', 0), 1)}W"
+        loads = phase_data.get('Loads', {'L1': 0, 'L2': 0, 'L3': 0})
+        phase_text = f"Phase L1: {round(loads.get('L1', 0), 1)}W | " \
+                     f"Phase L2: {round(loads.get('L2', 0), 1)}W | " \
+                     f"Phase L3: {round(loads.get('L3', 0), 1)}W"
         elements.append(Paragraph(phase_text, styles['Normal']))
         elements.append(Spacer(1, 10))
         elements.append(Paragraph("<i>Note: Appliances have been distributed to minimize neutral current.</i>", styles['Italic']))
