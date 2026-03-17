@@ -7,4 +7,6 @@ urlpatterns = [
     path('remove/<int:app_id>/', views.remove_appliance, name='remove_appliance'),
     path('export/', views.export_pdf, name='export_pdf'),
     path('create_project/', views.create_project, name='create_project'),
+    path('login/', views.login_view, name='login'),
+    path('logout/', views.logout_view, name='logout'),
 ]

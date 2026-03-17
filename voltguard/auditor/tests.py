@@ -63,6 +63,10 @@ class ViewTests(TestCase):
         
         factory = RequestFactory()
         request = factory.get('/export/')
+        request.COOKIES['vg_uid'] = 'dummy_test_uid'
+        # Crucial for views.py
+        project.user_uid = 'dummy_test_uid'
+        project.save()
         
         try:
             response = export_pdf(request)

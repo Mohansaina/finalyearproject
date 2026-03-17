@@ -16,15 +16,19 @@ from .engine import (
 from .pdf_generator import generate_schedule_pdf
 
 def dashboard(request):
-    projects = Project.objects.all().order_by('-created_at')
+    vg_uid = request.COOKIES.get('vg_uid')
+    if not vg_uid:
+        return redirect('login')
+        
+    projects = Project.objects.filter(user_uid=vg_uid).order_by('-created_at')
     project_id = request.GET.get('project_id')
     
     if project_id:
-        project = get_object_or_404(Project, id=project_id)
+        project = get_object_or_404(Project, id=project_id, user_uid=vg_uid)
     else:
         project = projects.first()
         if not project:
-            project = Project.objects.create(name="New Project")
+            project = Project.objects.create(name="New Project", user_uid=vg_uid)
             
     appliances = project.appliances.all()
     
@@ -119,12 +123,16 @@ def dashboard(request):
     return render(request, 'dashboard.html', context)
 
 def add_appliance(request):
+    vg_uid = request.COOKIES.get('vg_uid')
+    if not vg_uid:
+        return redirect('login')
+        
     if request.method == 'POST':
         project_id = request.POST.get('project_id')
         if project_id:
-            project = get_object_or_404(Project, id=project_id)
+            project = get_object_or_404(Project, id=project_id, user_uid=vg_uid)
         else:
-            project, _ = Project.objects.get_or_create(name="New Project")
+            project, _ = Project.objects.get_or_create(name="New Project", user_uid=vg_uid)
             
         name = request.POST.get('name')
         appliance_type = request.POST.get('appliance_type', 'Standard')
@@ -167,17 +175,27 @@ def add_appliance(request):
     return redirect(f"/?project_id={project.id}" if hasattr(request, 'POST') and request.POST.get('project_id') else 'dashboard')
 
 def remove_appliance(request, app_id):
-    appliance = get_object_or_404(Appliance, id=app_id)
+    vg_uid = request.COOKIES.get('vg_uid')
+    if not vg_uid:
+        return redirect('login')
+        
+    appliance = get_object_or_404(Appliance, id=app_id, project__user_uid=vg_uid)
     project_id = appliance.project.id
     appliance.delete()
     return redirect(f"/?project_id={project_id}")
 
 def export_pdf(request):
+    vg_uid = request.COOKIES.get('vg_uid')
+    if not vg_uid:
+        return redirect('login')
+        
     project_id = request.GET.get('project_id')
     if project_id:
-        project = get_object_or_404(Project, id=project_id)
+        project = get_object_or_404(Project, id=project_id, user_uid=vg_uid)
     else:
-        project = Project.objects.first()
+        project = Project.objects.filter(user_uid=vg_uid).first()
+        if not project:
+            return redirect('dashboard')
         
     appliances = project.appliances.all()
     
@@ -238,11 +256,26 @@ def export_pdf(request):
     return response
 
 def create_project(request):
+    vg_uid = request.COOKIES.get('vg_uid')
+    if not vg_uid:
+        return redirect('login')
+        
     if request.method == 'POST':
         name = request.POST.get('name', 'New Project').strip()
         if not name:
             name = 'New Project'
-        project = Project.objects.create(name=name)
+        project = Project.objects.create(name=name, user_uid=vg_uid)
         return redirect(f"/?project_id={project.id}")
     return redirect('dashboard')
+
+def login_view(request):
+    # If already holding a cookie, send them to dashboard
+    if request.COOKIES.get('vg_uid'):
+        return redirect('dashboard')
+    return render(request, 'login.html')
+
+def logout_view(request):
+    response = redirect('login')
+    response.delete_cookie('vg_uid')
+    return response
 

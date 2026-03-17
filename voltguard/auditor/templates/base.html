@@ -108,6 +108,12 @@
                         <span class="w-2 h-2 rounded-full bg-brand-400 mr-2 animate-pulse"></span>
                         Simulation Active
                     </span>
+                    
+                    {% if request.COOKIES.vg_uid %}
+                    <a href="{% url 'logout' %}" class="ml-4 flex items-center text-xs font-semibold px-3 py-1 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 shadow-[0_0_10px_rgba(244,63,94,0.1)] hover:bg-rose-500/20 transition-colors">
+                        Logout
+                    </a>
+                    {% endif %}
                 </div>
             </div>
         </div>

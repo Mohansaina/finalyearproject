@@ -2,6 +2,7 @@ from django.db import models
 
 class Project(models.Model):
     name = models.CharField(max_length=200)
+    user_uid = models.CharField(max_length=128, blank=True, null=True, help_text="Firebase User UID")
     created_at = models.DateTimeField(auto_now_add=True)
     total_load = models.FloatField(default=0.0, help_text="Total Connected Load (W)")
     phase_type = models.CharField(max_length=20, default='1-Phase')
