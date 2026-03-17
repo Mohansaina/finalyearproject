@@ -46,10 +46,9 @@
 <!-- Firebase Modular SDK -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
-    import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+    import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
     import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-analytics.js";
 
-    // Dynamic config injected from user metadata
     const firebaseConfig = {
       apiKey: "AIzaSyBgI6cmgercE3RDL21wAAPkWpT6OiAX7Ck",
       authDomain: "voltguardaudit.firebaseapp.com",
@@ -65,32 +64,37 @@
     const auth = getAuth(app);
     const provider = new GoogleAuthProvider();
 
-    // Check if we just came back from the Google Login page
-    getRedirectResult(auth)
-        .then((result) => {
-            if (result) {
-                const user = result.user;
-                console.log("Logged in successfully!", user.uid);
-                
-                // Write cookie securely via JS to allow Django logic to pick it up
-                const expiry = new Date();
-                expiry.setTime(expiry.getTime() + (7 * 24 * 60 * 60 * 1000));
-                document.cookie = `vg_uid=${user.uid};expires=${expiry.toUTCString()};path=/`;
-                
-                // Redirect back to dashboard to load user's projects
-                window.location.href = "{% url 'dashboard' %}";
-            }
-        })
-        .catch((error) => {
-            console.error("Login failed:", error);
-            const errorEl = document.getElementById('error-message');
-            errorEl.textContent = `Authentication failed: ${error.message}`;
-            errorEl.classList.remove('hidden');
-        });
+    // The absolute safest way to catch a successful login
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            console.log("Auth state verified:", user.uid);
+            const expiry = new Date();
+            expiry.setTime(expiry.getTime() + (7 * 24 * 60 * 60 * 1000));
+            document.cookie = `vg_uid=${user.uid};expires=${expiry.toUTCString()};path=/`;
+            window.location.href = "{% url 'dashboard' %}";
+        }
+    });
 
-    // Instead of popup, redirect the entire page to Google
     document.getElementById('google-login-btn').addEventListener('click', () => {
-        signInWithRedirect(auth, provider);
+        const errorEl = document.getElementById('error-message');
+        errorEl.classList.add('hidden');
+        
+        signInWithPopup(auth, provider)
+            .then((result) => {
+                // Rely on onAuthStateChanged to handle the redirect
+                console.log("Popup succeeded!");
+            })
+            .catch((error) => {
+                console.error("Popup failed:", error);
+                // Important: Only show error if they ACTUALLY failed, not if they just clicked 'X'
+                if (error.code !== 'auth/popup-closed-by-user') {
+                    errorEl.textContent = `Login Error: ${error.message}`;
+                    errorEl.classList.remove('hidden');
+                } else {
+                    errorEl.textContent = `Login window was closed. Try again when ready.`;
+                    errorEl.classList.remove('hidden');
+                }
+            });
     });
 </script>
 {% endblock %}
