@@ -173,7 +173,6 @@ def balance_phases(appliances):
         min_phase = min(phase_loads, key=phase_loads.get)
         phases[min_phase].append(app)
         phase_loads[min_phase] += get_power(app)
-        
     return {
         'requires_3_phase': True,
         'L1': phases['L1'],
@@ -181,3 +180,53 @@ def balance_phases(appliances):
         'L3': phases['L3'],
         'Loads': phase_loads
     }
+
+def calculate_energy_and_carbon(total_watts, hours_per_day, days_per_month=30):
+    """
+    Predict monthly energy footprint and cost.
+    Assumes standard price of ₹8.0 per Unit (kWh) and 0.85 kg CO2 per Unit.
+    """
+    monthly_kwh = (total_watts * hours_per_day * days_per_month) / 1000.0
+    monthly_cost_inr = monthly_kwh * 8.0
+    monthly_carbon_kg = monthly_kwh * 0.85
+    return monthly_kwh, monthly_cost_inr, monthly_carbon_kg
+
+def estimate_bom_cost(processed_appliances, main_mcb_rating):
+    """
+    Provides a real-world Bill of Materials (BoM) estimate in INR.
+    Parses the already calculated arrays to estimate hardware costs.
+    """
+    total_cost = 0.0
+    
+    # 1. Main Incomer Cost
+    if main_mcb_rating <= 63:
+        total_cost += 1500  # Standard Main switch/ELCB
+    else:
+        total_cost += 3500  # Heavy Duty MCCB
+
+    # 2. Wire & Branch MCBs
+    for item in processed_appliances:
+        # MCB Pricing
+        if item['mcb_type'] == 'C':
+            total_cost += 350  # Type C inductive breakers
+        else:
+            total_cost += 250  # Type B resistive breakers
+            
+        # Copper Wire Pricing per meter based on physical limits
+        gauge = item.get('suggested_gauge', item['wire_size'])
+        length = item['appliance'].length_m
+        
+        if gauge <= 1.5:
+            rate = 20
+        elif gauge <= 2.5:
+            rate = 35
+        elif gauge <= 4.0:
+            rate = 55
+        elif gauge <= 6.0:
+            rate = 85
+        else:
+            rate = 150
+            
+        total_cost += (length * rate)
+        
+    return total_cost

@@ -23,6 +23,7 @@ class Appliance(models.Model):
     power_watts = models.FloatField(help_text="Real Power per item in Watts (P)")
     power_factor = models.FloatField(default=1.0, help_text="Power Factor (0.0 to 1.0)")
     length_m = models.FloatField(help_text="Length of wire in meters (L)")
+    hours_used_per_day = models.FloatField(default=8.0, help_text="Estimated usage per day in hours")
 
     def __str__(self):
         return f"{self.quantity}x {self.name} ({self.power_watts}W @ {self.power_factor} PF)"

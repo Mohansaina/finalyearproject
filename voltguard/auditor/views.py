@@ -9,7 +9,9 @@ from .engine import (
     select_wire_gauge,
     calculate_voltage_drop,
     balance_phases,
-    suggest_main_incomer
+    suggest_main_incomer,
+    estimate_bom_cost,
+    calculate_energy_and_carbon
 )
 from .pdf_generator import generate_schedule_pdf
 
@@ -31,6 +33,10 @@ def dashboard(request):
     total_power = 0
     total_apparent_power = 0
     total_reactive_power = 0
+    
+    total_monthly_kwh = 0
+    total_monthly_cost = 0
+    total_monthly_carbon = 0
     
     for app in appliances:
         circuit_watts = app.power_watts * app.quantity
@@ -62,6 +68,13 @@ def dashboard(request):
             'warning_msg': warning_msg,
             'suggested_gauge': suggested_gauge
         })
+        
+        # Energy & Carbon calculations
+        app_kwh, app_cost, app_carbon = calculate_energy_and_carbon(circuit_watts, app.hours_used_per_day)
+        total_monthly_kwh += app_kwh
+        total_monthly_cost += app_cost
+        total_monthly_carbon += app_carbon
+
         total_power += circuit_watts
         total_apparent_power += s_va
         total_reactive_power += q_var
@@ -75,6 +88,9 @@ def dashboard(request):
     # Calculate Demand Load and Main Incomer
     demand_load = calculate_demand_load(total_power)
     main_mcb_rating, main_mcb_type = suggest_main_incomer(demand_load, voltage=230.0, is_3_phase=phase_data.get('requires_3_phase', False))
+    
+    # Calculate BOM Cost
+    estimated_bom_cost = estimate_bom_cost(processed_appliances, main_mcb_rating)
     
     # Metadata updates
     if total_power != project.total_load or project.phase_type != ("3-Phase" if phase_data.get('requires_3_phase') else "1-Phase"):
@@ -90,6 +106,10 @@ def dashboard(request):
         'demand_load': demand_load,
         'main_mcb_rating': main_mcb_rating,
         'main_mcb_type': main_mcb_type,
+        'estimated_bom_cost': estimated_bom_cost,
+        'total_monthly_kwh': round(total_monthly_kwh, 1),
+        'total_monthly_cost': round(total_monthly_cost, 0),
+        'total_monthly_carbon': round(total_monthly_carbon, 1),
         'total_apparent_power': round(total_apparent_power, 1),
         'total_reactive_power': round(total_reactive_power, 1),
         'system_pf': round(system_pf, 3),
@@ -112,6 +132,7 @@ def add_appliance(request):
         power = request.POST.get('power_watts')
         power_factor = request.POST.get('power_factor', '1.0')
         length = request.POST.get('length_m')
+        hours_used = request.POST.get('hours_used_per_day', '8.0')
         
         if name and power and length:
             try:
@@ -127,6 +148,12 @@ def add_appliance(request):
             except ValueError:
                 qty = 1
                 
+            try:
+                hours = float(hours_used)
+                if hours < 0 or hours > 24.0: hours = 8.0
+            except ValueError:
+                hours = 8.0
+                
             Appliance.objects.create(
                 project=project,
                 name=name,
@@ -134,7 +161,8 @@ def add_appliance(request):
                 quantity=qty,
                 power_watts=float(power),
                 power_factor=pf,
-                length_m=float(length)
+                length_m=float(length),
+                hours_used_per_day=hours
             )
     return redirect(f"/?project_id={project.id}" if hasattr(request, 'POST') and request.POST.get('project_id') else 'dashboard')
 
