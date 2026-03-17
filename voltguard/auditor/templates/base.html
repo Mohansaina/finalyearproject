@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}VoltGuard Auditor{% endblock %}</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        heading: ['Outfit', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#ecfdf5',
+                            400: '#34d399',
+                            500: '#10b981',
+                            600: '#059669',
+                            900: '#064e3b',
+                        },
+                        dark: {
+                            bg: '#020617',
+                            surface: '#0f172a',
+                            border: '#1e293b'
+                        }
+                    },
+                    animation: {
+                        'blob': 'blob 7s infinite',
+                    },
+                    keyframes: {
+                        blob: {
+                            '0%': { transform: 'translate(0px, 0px) scale(1)' },
+                            '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+                            '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+                            '100%': { transform: 'translate(0px, 0px) scale(1)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .glass-panel {
+                @apply bg-slate-900/60 backdrop-blur-xl border border-white/5 shadow-2xl;
+            }
+            .text-gradient {
+                @apply bg-clip-text text-transparent bg-gradient-to-r from-brand-400 to-emerald-200;
+            }
+        }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #020617;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+        /* Dynamic mesh-like background blobs */
+        .bg-blobs::before, .bg-blobs::after {
+            content: '';
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(100px);
+            z-index: -1;
+            opacity: 0.4;
+            animation: blob 10s infinite alternate;
+        }
+        .bg-blobs::before {
+            top: -10%;
+            right: -5%;
+            width: 50vw;
+            height: 50vw;
+            background: radial-gradient(circle, rgba(16,185,129,0.2) 0%, rgba(5,150,105,0) 70%);
+        }
+        .bg-blobs::after {
+            bottom: -10%;
+            left: -10%;
+            width: 60vw;
+            height: 60vw;
+            background: radial-gradient(circle, rgba(52,211,153,0.15) 0%, rgba(2,6,23,0) 70%);
+            animation-delay: 2s;
+        }
+    </style>
+</head>
+<body class="text-slate-200 antialiased selection:bg-brand-500 selection:text-white bg-blobs">
+    
+    <nav class="sticky top-0 z-50 glass-panel border-b border-white/10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <!-- Icon -->
+                    <div class="relative flex items-center justify-center h-10 w-10 rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 shadow-[0_0_20px_rgba(16,185,129,0.3)] mr-3">
+                        <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                    </div>
+                    <span class="text-2xl font-bold tracking-tight text-white font-heading">VoltGuard <span class="text-gradient">Auditor</span></span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="flex items-center text-xs font-semibold px-3 py-1 rounded-full bg-brand-500/10 text-brand-400 border border-brand-500/20 shadow-[0_0_10px_rgba(16,185,129,0.1)]">
+                        <span class="w-2 h-2 rounded-full bg-brand-400 mr-2 animate-pulse"></span>
+                        Simulation Active
+                    </span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 relative z-10">
+        {% block content %}{% endblock %}
+    </main>
+
+</body>
+</html>

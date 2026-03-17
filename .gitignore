@@ -1,0 +1,17 @@
+# Python and Django
+*.pyc
+__pycache__/
+*.pyo
+venv/
+env/
+.env
+db.sqlite3
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
