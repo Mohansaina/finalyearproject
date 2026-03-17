@@ -205,7 +205,7 @@ def export_pdf(request):
     )
     
     response = FileResponse(pdf_buffer, content_type='application/pdf')
-    response['Content-Disposition'] = 'attachment; filename="VoltGuard_Schedule.pdf"'
+    response['Content-Disposition'] = 'inline; filename="VoltGuard_Schedule.pdf"'
     
     return response
 

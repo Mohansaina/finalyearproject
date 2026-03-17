@@ -48,7 +48,7 @@
                 <span class="bg-clip-text text-transparent bg-gradient-to-r from-brand-400 to-emerald-300">{{ project.name }}</span>
                 <span class="ml-4 text-xs font-bold bg-brand-500/10 text-brand-400 px-3 py-1 rounded-full border border-brand-500/20 shadow-[0_0_10px_rgba(16,185,129,0.1)] uppercase tracking-wider">Live View</span>
             </h2>
-            <a href="{% url 'export_pdf' %}?project_id={{ project.id }}" class="py-2.5 px-6 border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 hover:text-white rounded-xl transition-all font-bold flex items-center group hover:border-indigo-400 hover:shadow-[0_0_20px_rgba(99,102,241,0.2)]">
+            <a href="{% url 'export_pdf' %}?project_id={{ project.id }}" target="_blank" class="py-2.5 px-6 border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 hover:text-white rounded-xl transition-all font-bold flex items-center group hover:border-indigo-400 hover:shadow-[0_0_20px_rgba(99,102,241,0.2)]">
                 <svg class="w-5 h-5 mr-2 text-indigo-400 group-hover:-translate-y-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                 Export Schedule
             </a>
