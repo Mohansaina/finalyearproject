@@ -5,7 +5,7 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
-def generate_schedule_pdf(project_name, appliances, total_power, phase_data):
+def generate_schedule_pdf(project_name, appliances, total_power, phase_data, system_pf=1.0):
     """
     Generates a PDF using reportlab with all calculations, warnings, and Phase Distribution
     """
@@ -20,13 +20,21 @@ def generate_schedule_pdf(project_name, appliances, total_power, phase_data):
     elements.append(Paragraph(f"Electrical Wiring Schedule: {project_name}", title_style))
     
     # System Overview
-    elements.append(Paragraph(f"<b>Total Connected Load:</b> {round(total_power, 1)} W", styles['Normal']))
+    elements.append(Paragraph(f"<b>Total Connected Real Load:</b> {round(total_power, 1)} W", styles['Normal']))
+    
+    # System PF Status
+    pf_color = "green" if system_pf >= 0.9 else ("#b45309" if system_pf >= 0.8 else "red")
+    elements.append(Paragraph(f"<b>System Power Factor (Overall):</b> <font color='{pf_color}'>{round(system_pf, 3)}</font>", styles['Normal']))
+    
+    if system_pf < 0.85:
+        elements.append(Paragraph("<i><font color='red'>Warning: Poor Power Factor. Capacitor Bank Recommended.</font></i>", styles['Normal']))
+
     supply_type = "3-Phase (Exceeds 7kW limit)" if phase_data.get('requires_3_phase') else "1-Phase (Standard)"
     elements.append(Paragraph(f"<b>System Supply Type:</b> {supply_type}", styles['Normal']))
     elements.append(Spacer(1, 15))
     
     # Appliances Table
-    data = [['Appliance', 'Power (W)', 'Current (A)', 'MCB (A)', 'Wire (mm²)', 'V. Drop (V)', 'Status']]
+    data = [['Appliance', 'S (VA)', 'P.F.', 'Current (A)', 'MCB (A)', 'Wire (mm²)', 'V. Drop (V)', 'Status']]
     
     has_failure = False
     
@@ -37,7 +45,8 @@ def generate_schedule_pdf(project_name, appliances, total_power, phase_data):
             
         data.append([
             item['appliance'].name,
-            f"{item['appliance'].power_watts}",
+            f"{item['apparent_power']}",
+            f"{item['appliance'].power_factor}",
             f"{item['current']}",
             f"{item['mcb']}",
             f"{item['wire_size']}",
@@ -46,7 +55,7 @@ def generate_schedule_pdf(project_name, appliances, total_power, phase_data):
         ])
         
     # Create Table
-    table = Table(data, colWidths=[120, 60, 60, 50, 60, 90, 80])
+    table = Table(data, colWidths=[100, 60, 40, 60, 40, 60, 80, 80])
     
     table_style = TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1e293b')),
@@ -60,9 +69,9 @@ def generate_schedule_pdf(project_name, appliances, total_power, phase_data):
     
     # Highlight failures
     for i, row in enumerate(data[1:], 1):
-        if row[6] == "FAILURE (>3%)":
-            table_style.add('TEXTCOLOR', (6, i), (6, i), colors.red)
-            table_style.add('FONTNAME', (6, i), (6, i), 'Helvetica-Bold')
+        if row[7] == "FAILURE (>3%)":
+            table_style.add('TEXTCOLOR', (7, i), (7, i), colors.red)
+            table_style.add('FONTNAME', (7, i), (7, i), 'Helvetica-Bold')
             
     table.setStyle(table_style)
     elements.append(table)

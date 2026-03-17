@@ -1,16 +1,38 @@
 """
 VoltGuard Engineering Engine
-Core calculating module for all electrical formulas.
+Core calculating module for all electrical formulas, including Power Factor.
 """
+import math
 
-def calculate_current(power_watts, voltage=230.0):
+def calculate_current(power_watts, power_factor=1.0, voltage=230.0):
     """
     Calculate Total Current.
-    Formula: I = P / V
+    Formula: I = P / (V * PF)
     """
-    if voltage <= 0:
+    if voltage <= 0 or power_factor <= 0:
         return 0.0
-    return float(power_watts) / float(voltage)
+    return float(power_watts) / (float(voltage) * float(power_factor))
+
+def calculate_power_triangle(power_watts, power_factor):
+    """
+    Calculate Apparent Power (VA) and Reactive Power (VAr).
+    S = P / PF
+    Q = sqrt(S^2 - P^2)
+    """
+    if power_factor <= 0:
+        return 0.0, 0.0
+        
+    p = float(power_watts)
+    pf = float(power_factor)
+    
+    # Apparent Power (S) in VA
+    s = p / pf
+    
+    # Reactive Power (Q) in VAr
+    # Q = S * sin(acos(pf)) or sqrt(S^2 - P^2)
+    q = math.sqrt(max(0, s**2 - p**2))
+    
+    return s, q
 
 def select_mcb(current):
     """

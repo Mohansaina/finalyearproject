@@ -16,10 +16,25 @@
                 Add New Load
             </h2>
             <form action="{% url 'add_appliance' %}" method="POST" class="space-y-5 relative z-10">
-                {% csrf_token %}
                 <div class="group/input">
                     <label class="block text-sm font-medium text-slate-300 mb-1.5 transition-colors group-focus-within/input:text-brand-400">Appliance Name</label>
                     <input type="text" name="name" required class="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all placeholder:text-slate-500" placeholder="e.g. 1.5T AC">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="group/input">
+                        <label class="block text-sm font-medium text-slate-300 mb-1.5 transition-colors group-focus-within/input:text-brand-400">Power</label>
+                        <div class="relative">
+                            <input type="number" step="0.1" name="power_watts" required class="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all placeholder:text-slate-500 font-mono" placeholder="1500">
+                            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">W</span>
+                        </div>
+                    </div>
+                    <div class="group/input">
+                        <label class="block text-sm font-medium text-slate-300 mb-1.5 transition-colors group-focus-within/input:text-brand-400">Power Factor</label>
+                        <div class="relative">
+                            <input type="number" step="0.01" max="1.0" min="0.1" name="power_factor" class="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all placeholder:text-slate-500 font-mono" placeholder="0.9" value="1.0">
+                            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">PF</span>
+                        </div>
+                    </div>
                 </div>
                 <div class="group/input">
                     <label class="block text-sm font-medium text-slate-300 mb-1.5 transition-colors group-focus-within/input:text-brand-400">Power (Watts)</label>
@@ -58,13 +73,42 @@
     <div class="lg:col-span-2 space-y-6">
         
         <!-- System Health Overview -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="glass-panel rounded-3xl p-6 relative overflow-hidden group hover:border-brand-500/30 transition-colors">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <!-- Load Card -->
+            <div class="glass-panel rounded-3xl p-5 relative overflow-hidden group hover:border-brand-500/30 transition-colors">
                 <div class="absolute -right-6 -top-6 w-32 h-32 bg-brand-500/20 rounded-full blur-2xl group-hover:bg-brand-500/30 transition-all duration-500"></div>
-                <p class="text-xs text-slate-400 font-bold tracking-widest uppercase mb-2">Total Load</p>
+                <p class="text-[10px] text-slate-400 font-bold tracking-widest uppercase mb-2">Total Load</p>
                 <div class="flex items-baseline mb-1">
-                    <p class="text-4xl font-black text-white font-heading tracking-tight">{{ total_power|floatformat:1 }}</p>
-                    <span class="text-xl text-brand-400 font-bold ml-1">W</span>
+                    <p class="text-3xl font-black text-white font-heading tracking-tight">{{ total_power|floatformat:1 }}</p>
+                    <span class="text-sm text-brand-400 font-bold ml-1">W</span>
+                </div>
+            </div>
+            
+            <!-- Power Factor Card -->
+            <div class="glass-panel rounded-3xl p-5 relative overflow-hidden group {% if system_pf >= 0.9 %}hover:border-emerald-500/30{% elif system_pf >= 0.8 %}hover:border-amber-500/30{% else %}hover:border-rose-500/30{% endif %} transition-colors">
+                <div class="absolute -right-6 -top-6 w-32 h-32 {% if system_pf >= 0.9 %}bg-emerald-500/20 group-hover:bg-emerald-500/30{% elif system_pf >= 0.8 %}bg-amber-500/20 group-hover:bg-amber-500/30{% else %}bg-rose-500/20 group-hover:bg-rose-500/30{% endif %} rounded-full blur-2xl transition-all duration-500"></div>
+                <p class="text-[10px] text-slate-400 font-bold tracking-widest uppercase mb-1">System P.F.</p>
+                <div class="flex flex-col items-start justify-center h-[calc(100%-1.5rem)] pb-1">
+                    {% if system_pf >= 0.9 %}
+                        <p class="text-3xl font-black text-emerald-400 font-heading tracking-tight mb-1">{{ system_pf|floatformat:3 }}</p>
+                        <span class="px-2 py-0.5 rounded-md text-[9px] uppercase tracking-wider font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">Optimal</span>
+                    {% elif system_pf >= 0.8 %}
+                        <p class="text-3xl font-black text-amber-400 font-heading tracking-tight mb-1">{{ system_pf|floatformat:3 }}</p>
+                        <span class="px-2 py-0.5 rounded-md text-[9px] uppercase tracking-wider font-bold bg-amber-500/10 text-amber-300 border border-amber-500/20">Monitor</span>
+                    {% else %}
+                        <p class="text-3xl font-black text-rose-500 font-heading tracking-tight mb-1">{{ system_pf|floatformat:3 }}</p>
+                        <span class="px-2 py-0.5 rounded-md text-[9px] uppercase tracking-wider font-bold bg-rose-500/10 text-rose-300 border border-rose-500/20 animate-pulse">Needs Cap. Bank</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Apparent Power Card -->
+            <div class="glass-panel rounded-3xl p-5 relative overflow-hidden group hover:border-indigo-500/30 transition-colors">
+                <div class="absolute -right-6 -top-6 w-32 h-32 bg-indigo-500/20 rounded-full blur-2xl group-hover:bg-indigo-500/30 transition-all duration-500"></div>
+                <p class="text-[10px] text-slate-400 font-bold tracking-widest uppercase mb-2">Apparent Power</p>
+                <div class="flex items-baseline mb-1">
+                    <p class="text-3xl font-black text-white font-heading tracking-tight">{{ total_apparent_power|floatformat:1 }}</p>
+                    <span class="text-sm text-indigo-400 font-bold ml-1">VA</span>
                 </div>
             </div>
             
@@ -82,18 +126,18 @@
                 </div>
             </div>
 
-            <div class="glass-panel rounded-3xl p-6 relative overflow-hidden group {% if has_failures %}hover:border-rose-500/30{% else %}hover:border-brand-500/30{% endif %} transition-colors">
+            <div class="glass-panel rounded-3xl p-5 relative overflow-hidden group {% if has_failures %}hover:border-rose-500/30{% else %}hover:border-brand-500/30{% endif %} transition-colors">
                 <div class="absolute -right-6 -top-6 w-32 h-32 {% if has_failures %}bg-rose-500/20 group-hover:bg-rose-500/30{% else %}bg-brand-500/20 group-hover:bg-brand-500/30{% endif %} rounded-full blur-2xl transition-all duration-500"></div>
-                <p class="text-xs text-slate-400 font-bold tracking-widest uppercase mb-2">Design Status</p>
-                <div class="flex items-center h-[calc(100%-1.5rem)] pb-2">
+                <p class="text-[10px] text-slate-400 font-bold tracking-widest uppercase mb-2">Design Status</p>
+                <div class="flex flex-col items-start justify-center h-[calc(100%-1.5rem)] pb-1">
                 {% if has_failures %}
-                    <div class="flex items-center bg-rose-500/10 px-4 py-2 rounded-xl border border-rose-500/20 shadow-[0_0_15px_rgba(244,63,94,0.15)]">
-                        <svg class="w-6 h-6 mr-2 text-rose-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    <div class="flex items-center">
+                        <svg class="w-6 h-6 mr-1.5 text-rose-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
                         <p class="text-xl font-black text-rose-500 font-heading">Violation</p>
                     </div>
                 {% else %}
-                    <div class="flex items-center bg-brand-500/10 px-4 py-2 rounded-xl border border-brand-500/20 shadow-[0_0_15px_rgba(16,185,129,0.15)]">
-                        <svg class="w-6 h-6 mr-2 text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <div class="flex items-center">
+                        <svg class="w-6 h-6 mr-1.5 text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                         <p class="text-xl font-black text-brand-400 font-heading">Compliant</p>
                     </div>
                 {% endif %}
@@ -164,7 +208,7 @@
                             <td class="px-8 py-5 font-bold text-white group-hover:text-brand-300 transition-colors">{{ item.appliance.name }}</td>
                             <td class="px-6 py-5">
                                 <span class="font-mono text-white">{{ item.appliance.power_watts }}</span> W
-                                <span class="text-xs text-slate-500 block mt-0.5"><span class="font-mono">{{ item.appliance.length_m }}</span> m</span>
+                                <span class="text-[10px] text-slate-500 block mt-0.5 uppercase tracking-wider">L: <span class="font-mono text-slate-400">{{ item.appliance.length_m }}</span>m | P.F: <span class="font-mono text-slate-400">{{ item.appliance.power_factor }}</span></span>
                             </td>
                             <td class="px-6 py-5 font-mono text-brand-400 font-bold bg-brand-500/5">{{ item.current }} A</td>
                             <td class="px-6 py-5">
