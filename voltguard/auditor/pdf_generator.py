@@ -5,7 +5,7 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
-def generate_schedule_pdf(project_name, appliances, total_power, phase_data, system_pf=1.0, demand_load=0.0):
+def generate_schedule_pdf(project_name, appliances, total_power, phase_data, system_pf=1.0, demand_load=0.0, main_mcb_rating=63, main_mcb_type='C'):
     """
     Generates a PDF using reportlab with all calculations, warnings, and Phase Distribution
     """
@@ -22,6 +22,7 @@ def generate_schedule_pdf(project_name, appliances, total_power, phase_data, sys
     # System Overview
     elements.append(Paragraph(f"<b>Total Connected Real Load:</b> {round(total_power, 1)} W", styles['Normal']))
     elements.append(Paragraph(f"<b>Demand Load (0.8 Diversity Factor):</b> {round(demand_load, 1)} W", styles['Normal']))
+    elements.append(Paragraph(f"<b>Main Incomer Rating:</b> {main_mcb_rating}A (Type {main_mcb_type})", styles['Normal']))
     
     # System PF Status
     pf_color = "green" if system_pf >= 0.9 else ("#b45309" if system_pf >= 0.8 else "red")
@@ -41,17 +42,20 @@ def generate_schedule_pdf(project_name, appliances, total_power, phase_data, sys
     
     for item in appliances:
         status_text = "FAILURE (>3%)" if item['is_failure'] else "OK"
+        wire_display = f"{item['wire_size']}mm²"
+        
         if item['is_failure']:
             has_failure = True
+            wire_display = f"Upgrade: {item['suggested_gauge']}mm²"
             
         data.append([
-            item['appliance'].name,
+            item['appliance'].name[:12],
             f"{item['appliance'].quantity}",
             f"{item['apparent_power']}",
             f"{item['appliance'].power_factor}",
             f"{item['current']}",
             f"{item['mcb']}A ({item['mcb_type']})",
-            f"{item['wire_size']}mm²",
+            wire_display,
             f"{item['v_drop']}V ({item['v_drop_pct']}%)",
             status_text
         ])

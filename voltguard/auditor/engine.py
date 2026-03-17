@@ -4,26 +4,18 @@ Core calculating module for all electrical formulas, including Power Factor.
 """
 import math
 
-def calculate_demand_load(total_power, diversity_factor=0.8):
+def calculate_demand_load(total_power_watts, diversity_factor=0.8):
     """
     Calculate practical Demand Load by applying a diversity factor.
     """
-    return total_power * diversity_factor
-
-def calculate_current(power_watts, power_factor=1.0, voltage=230.0):
-    """
-    Calculate Total Current.
-    Formula: I = P / (V * PF)
-    """
-    if voltage <= 0 or power_factor <= 0:
-        return 0.0
-    return float(power_watts) / (float(voltage) * float(power_factor))
+    return float(total_power_watts) * diversity_factor
 
 def calculate_power_triangle(power_watts, power_factor):
     """
     Calculate Apparent Power (VA) and Reactive Power (VAr).
     S = P / PF
     Q = sqrt(S^2 - P^2)
+    Returns: (apparent_power_va, reactive_power_var)
     """
     if power_factor <= 0:
         return 0.0, 0.0
@@ -32,76 +24,118 @@ def calculate_power_triangle(power_watts, power_factor):
     pf = float(power_factor)
     
     # Apparent Power (S) in VA
-    s = p / pf
+    apparent_power_va = p / pf
     
     # Reactive Power (Q) in VAr
     # Q = S * sin(acos(pf)) or sqrt(S^2 - P^2)
-    q = math.sqrt(max(0, s**2 - p**2))
+    reactive_power_var = math.sqrt(max(0, apparent_power_va**2 - p**2))
     
-    return s, q
+    return apparent_power_va, reactive_power_var
+
+def calculate_current(apparent_power_va, voltage=230.0, is_3_phase=False):
+    """
+    Calculate Total Current.
+    Formula: 
+    1-Phase: I = S / V
+    3-Phase: I = S / (V * sqrt(3))
+    """
+    if voltage <= 0 or apparent_power_va <= 0:
+        return 0.0
+    
+    if is_3_phase:
+        return float(apparent_power_va) / (float(voltage) * math.sqrt(3))
+    
+    return float(apparent_power_va) / float(voltage)
 
 def select_mcb(current, appliance_type='Standard'):
     """
     Select MCB rating and Type (B or C).
-    Motor/AC appliances use a 125% Safety Factor and 'Type C'.
-    Lights use 'Type B'.
+    - 125% Safety Factor Rule: I_mcb >= 1.25 * I_load for ALL circuits
+    - Motor/AC use 'Type C'. Loads typically use 'Type B' or 'C'.
     """
+    safety_current = float(current) * 1.25
+    
     if appliance_type == 'Motor/AC':
-        safety_current = float(current) * 1.25
         mcb_type = 'C'
     elif appliance_type == 'Light':
-        safety_current = float(current) * 1.0
         mcb_type = 'B'
     else:
-        # Standard load
-        safety_current = float(current) * 1.25
         mcb_type = 'B'
         
-    standard_ratings = [6, 10, 16, 20, 25, 32, 40, 63]
+    standard_ratings = [6, 10, 16, 20, 25, 32, 40, 63, 80, 100, 125, 160]
     
     for rating in standard_ratings:
         if rating >= safety_current:
             return rating, mcb_type
     
     # Exceeds standard ratings, returning max
-    return 63, mcb_type
+    return 160, mcb_type
+
+def suggest_main_incomer(demand_load_watts, voltage=230, is_3_phase=False):
+    """
+    Suggests the Main Incomer rating based on the total Demand Load.
+    """
+    apparent_power_va, _ = calculate_power_triangle(demand_load_watts, 1.0) # Assume 1.0 PF for incomer rough calc if not factored
+    current = calculate_current(apparent_power_va, voltage, is_3_phase)
+    rating, mcb_type = select_mcb(current, 'Standard')
+    return rating, mcb_type
 
 def select_wire_gauge(current):
     """
-    Select Standard Copper Wire Gauge based on Ampacity.
+    Select Standard Copper Wire Gauge based on Ampacity and exact Copper Resistances.
     Lookup Table:
-    1.0 mm2 -> up to 12A
-    1.5 mm2 -> up to 16A
-    2.5 mm2 -> up to 25A
-    4.0 mm2 -> up to 32A
-    6.0 mm2 -> up to 40A
+    1.5 mm2 -> up to 16A -> 12.1 ohm/km
+    2.5 mm2 -> up to 25A -> 7.41 ohm/km
+    4.0 mm2 -> up to 32A -> 4.61 ohm/km
+    6.0 mm2 -> up to 40A -> 3.08 ohm/km
+    10.0 mm2 -> up to 63A -> 1.83 ohm/km
     
-    Returns a tuple: (mm2, resistance_per_km_in_ohms)
+    Returns a tuple: (gauge_mm2, resistance_per_km)
     """
-    if current <= 12:
-        return (1.0, 18.1)
-    elif current <= 16:
+    if current <= 16:
         return (1.5, 12.1)
     elif current <= 25:
         return (2.5, 7.41)
     elif current <= 32:
         return (4.0, 4.61)
-    else:
+    elif current <= 40:
         return (6.0, 3.08)
+    else:
+        return (10.0, 1.83)
 
-def calculate_voltage_drop(length_m, current, resistance_per_km, voltage=230.0):
+def calculate_voltage_drop(length_m, current, gauge_mm2, resistance_per_km, voltage=230.0):
     """
     Auditor for Voltage Drop.
     Formula: V_drop = (2 * L * I * R) / 1000
     L = length in meters, I = current in Amps, R = Resistance per km (Ohms/km)
     
-    Returns: (v_drop, percentage_drop, is_failure)
+    Returns: (v_drop, percentage_drop, is_failure, warning_msg, suggested_gauge_mm2)
     """
     v_drop = (2 * length_m * current * resistance_per_km) / 1000.0
-    percentage = (v_drop / voltage) * 100
-    is_failure = percentage > 3.0
+    voltage_drop_percent = (v_drop / voltage) * 100
     
-    return round(v_drop, 2), round(percentage, 2), is_failure
+    # Auto-Upgrade Logic for V_drop > 3%
+    is_failure = voltage_drop_percent > 3.0
+    warning_msg = None
+    suggested_gauge_mm2 = gauge_mm2
+    
+    if is_failure:
+        # Array of tuples: (gauge_mm2, resistance_per_km)
+        larger_sizes = [(2.5, 7.41), (4.0, 4.61), (6.0, 3.08), (10.0, 1.83), (16.0, 1.15)]
+        
+        for next_gauge, next_res in larger_sizes:
+            if next_gauge > gauge_mm2:
+                test_v_drop = (2 * length_m * current * next_res) / 1000.0
+                test_percentage = (test_v_drop / voltage) * 100
+                if test_percentage <= 3.0:
+                    suggested_gauge_mm2 = next_gauge
+                    warning_msg = f"Safety Warning: V_drop > 3%. Suggest auto-upgrading to {next_gauge}mm² wire."
+                    break
+        
+        if not warning_msg:
+            warning_msg = f"Critical Danger: V_drop {round(voltage_drop_percent, 1)}% exceeds 3% limits and wire is too thick for branch circuit."
+
+    return round(v_drop, 2), round(voltage_drop_percent, 2), is_failure, warning_msg, suggested_gauge_mm2
 
 def balance_phases(appliances):
     """

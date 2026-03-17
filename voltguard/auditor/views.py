@@ -8,7 +8,8 @@ from .engine import (
     select_mcb,
     select_wire_gauge,
     calculate_voltage_drop,
-    balance_phases
+    balance_phases,
+    suggest_main_incomer
 )
 from .pdf_generator import generate_schedule_pdf
 
@@ -33,12 +34,19 @@ def dashboard(request):
     
     for app in appliances:
         circuit_watts = app.power_watts * app.quantity
-        current = calculate_current(circuit_watts, app.power_factor)
         s_va, q_var = calculate_power_triangle(circuit_watts, app.power_factor)
+        
+        # Determine 3-Phase specific current logic if needed in future, standard assume 1-phase per appliance for now
+        current = calculate_current(s_va, voltage=230.0, is_3_phase=False) 
         
         mcb, mcb_type = select_mcb(current, app.appliance_type)
         wire_size, resistance = select_wire_gauge(current)
-        v_drop, v_drop_pct, is_failure = calculate_voltage_drop(app.length_m, current, resistance)
+        v_drop, v_drop_pct, is_failure, warning_msg, suggested_gauge = calculate_voltage_drop(
+            length_m=app.length_m, 
+            current=current, 
+            gauge_mm2=wire_size, 
+            resistance_per_km=resistance
+        )
         
         processed_appliances.append({
             'appliance': app,
@@ -50,7 +58,9 @@ def dashboard(request):
             'wire_size': wire_size,
             'v_drop': v_drop,
             'v_drop_pct': v_drop_pct,
-            'is_failure': is_failure
+            'is_failure': is_failure,
+            'warning_msg': warning_msg,
+            'suggested_gauge': suggested_gauge
         })
         total_power += circuit_watts
         total_apparent_power += s_va
@@ -59,11 +69,12 @@ def dashboard(request):
     # Calculate System Power Factor
     system_pf = (total_power / total_apparent_power) if total_apparent_power > 0 else 1.0
     
-    # Calculate Demand Load
-    demand_load = calculate_demand_load(total_power)
-        
     # 3-Phase balancing
     phase_data = balance_phases(appliances)
+    
+    # Calculate Demand Load and Main Incomer
+    demand_load = calculate_demand_load(total_power)
+    main_mcb_rating, main_mcb_type = suggest_main_incomer(demand_load, voltage=230.0, is_3_phase=phase_data.get('requires_3_phase', False))
     
     # Metadata updates
     if total_power != project.total_load or project.phase_type != ("3-Phase" if phase_data.get('requires_3_phase') else "1-Phase"):
@@ -77,6 +88,8 @@ def dashboard(request):
         'appliances': processed_appliances,
         'total_power': total_power,
         'demand_load': demand_load,
+        'main_mcb_rating': main_mcb_rating,
+        'main_mcb_type': main_mcb_type,
         'total_apparent_power': round(total_apparent_power, 1),
         'total_reactive_power': round(total_reactive_power, 1),
         'system_pf': round(system_pf, 3),
@@ -146,11 +159,16 @@ def export_pdf(request):
     
     for app in appliances:
         circuit_watts = app.power_watts * app.quantity
-        current = calculate_current(circuit_watts, app.power_factor)
         s_va, _ = calculate_power_triangle(circuit_watts, app.power_factor)
+        current = calculate_current(s_va, voltage=230.0, is_3_phase=False)
         mcb, mcb_type = select_mcb(current, app.appliance_type)
         wire_size, resistance = select_wire_gauge(current)
-        v_drop, v_drop_pct, is_failure = calculate_voltage_drop(app.length_m, current, resistance)
+        v_drop, v_drop_pct, is_failure, warning_msg, suggested_gauge = calculate_voltage_drop(
+            length_m=app.length_m,
+            current=current,
+            gauge_mm2=wire_size,
+            resistance_per_km=resistance
+        )
         
         processed_appliances.append({
             'appliance': app,
@@ -162,17 +180,29 @@ def export_pdf(request):
             'wire_size': wire_size,
             'v_drop': v_drop,
             'v_drop_pct': v_drop_pct,
-            'is_failure': is_failure
+            'is_failure': is_failure,
+            'warning_msg': warning_msg,
+            'suggested_gauge': suggested_gauge
         })
         total_power += circuit_watts
         total_apparent_power += s_va
         
     system_pf = (total_power / total_apparent_power) if total_apparent_power > 0 else 1.0    
-    demand_load = calculate_demand_load(total_power)
     phase_data = balance_phases(appliances)
+    demand_load = calculate_demand_load(total_power)
+    main_mcb_rating, main_mcb_type = suggest_main_incomer(demand_load, voltage=230.0, is_3_phase=phase_data.get('requires_3_phase', False))
     
-    # We will pass system_pf and demand_load to generate_schedule_pdf parameter later
-    pdf_buffer = generate_schedule_pdf(project.name, processed_appliances, total_power, phase_data, system_pf=system_pf, demand_load=demand_load)
+    # We will pass system_pf, demand_load, and incomer logic to generate_schedule_pdf parameter later
+    pdf_buffer = generate_schedule_pdf(
+        project.name, 
+        processed_appliances, 
+        total_power, 
+        phase_data, 
+        system_pf=system_pf, 
+        demand_load=demand_load,
+        main_mcb_rating=main_mcb_rating,
+        main_mcb_type=main_mcb_type
+    )
     
     response = FileResponse(pdf_buffer, content_type='application/pdf')
     response['Content-Disposition'] = 'attachment; filename="VoltGuard_Schedule.pdf"'

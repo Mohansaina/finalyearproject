@@ -27,17 +27,17 @@ class EngineTests(TestCase):
         self.assertEqual(select_mcb(10.0, 'Light')[1], 'B')
         
     def test_select_wire_gauge(self):
-        # 10A should return 1.0mm2
-        self.assertEqual(select_wire_gauge(10.0)[0], 1.0)
+        # 10A should return minimum 1.5mm2
+        self.assertEqual(select_wire_gauge(10.0)[0], 1.5)
         # 20A should return 2.5mm2
         self.assertEqual(select_wire_gauge(20.0)[0], 2.5)
         
     def test_calculate_voltage_drop(self):
-        # L=20m, I=10A, R=18.1 (1.0mm2) -> V_drop = (2 * 20 * 10 * 18.1) / 1000 = 7.24V
-        v_drop, percent, is_fail = calculate_voltage_drop(20, 10, 18.1, 230)
-        self.assertAlmostEqual(v_drop, 7.24)
-        self.assertAlmostEqual(percent, (7.24/230)*100, places=2)
-        self.assertTrue(is_fail) # 7.24V / 230V = 3.14% > 3.0%
+        # L=20m, I=10A, gauge=1.5, R=12.1 (1.5mm2) -> V_drop = (2 * 20 * 10 * 12.1) / 1000 = 4.84V
+        v_drop, percent, is_fail, warning, upgrade = calculate_voltage_drop(20, 10, 1.5, 12.1, 230)
+        self.assertAlmostEqual(v_drop, 4.84)
+        self.assertAlmostEqual(percent, (4.84/230)*100, places=2)
+        self.assertFalse(is_fail) # 4.84V / 230V = 2.1% < 3.0%
         
     def test_balance_phases(self):
         project = Project.objects.create(name="Test")
