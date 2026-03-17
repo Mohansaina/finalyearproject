@@ -46,7 +46,7 @@
 <!-- Firebase Modular SDK -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
-    import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+    import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
     import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-analytics.js";
 
     // Dynamic config injected from user metadata
@@ -65,27 +65,32 @@
     const auth = getAuth(app);
     const provider = new GoogleAuthProvider();
 
-    document.getElementById('google-login-btn').addEventListener('click', () => {
-        signInWithPopup(auth, provider)
-            .then((result) => {
+    // Check if we just came back from the Google Login page
+    getRedirectResult(auth)
+        .then((result) => {
+            if (result) {
                 const user = result.user;
                 console.log("Logged in successfully!", user.uid);
                 
                 // Write cookie securely via JS to allow Django logic to pick it up
-                // Cookie lasts 7 days
                 const expiry = new Date();
                 expiry.setTime(expiry.getTime() + (7 * 24 * 60 * 60 * 1000));
                 document.cookie = `vg_uid=${user.uid};expires=${expiry.toUTCString()};path=/`;
                 
                 // Redirect back to dashboard to load user's projects
                 window.location.href = "{% url 'dashboard' %}";
-            })
-            .catch((error) => {
-                console.error("Login failed:", error);
-                const errorEl = document.getElementById('error-message');
-                errorEl.textContent = `Authentication failed: ${error.message}`;
-                errorEl.classList.remove('hidden');
-            });
+            }
+        })
+        .catch((error) => {
+            console.error("Login failed:", error);
+            const errorEl = document.getElementById('error-message');
+            errorEl.textContent = `Authentication failed: ${error.message}`;
+            errorEl.classList.remove('hidden');
+        });
+
+    // Instead of popup, redirect the entire page to Google
+    document.getElementById('google-login-btn').addEventListener('click', () => {
+        signInWithRedirect(auth, provider);
     });
 </script>
 {% endblock %}
