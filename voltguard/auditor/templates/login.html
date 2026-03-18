@@ -39,6 +39,13 @@
             </button>
             
             <p id="error-message" class="mt-4 text-rose-400 text-sm hidden font-medium bg-rose-500/10 px-3 py-2 rounded-lg border border-rose-500/20"></p>
+            
+            <div class="mt-4 pt-4 border-t border-slate-700/50">
+                <p class="text-slate-500 text-xs mb-2">Local Development</p>
+                <a href="{% url 'dev_login' %}" class="w-full inline-flex items-center justify-center bg-slate-700 hover:bg-slate-600 text-slate-300 font-semibold py-2.5 px-4 rounded-xl transition-all text-sm">
+                    ⚡ Dev Login (Bypass Firebase)
+                </a>
+            </div>
         </div>
     </div>
 </div>
@@ -46,8 +53,7 @@
 <!-- Firebase Modular SDK -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
-    import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
-    import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-analytics.js";
+    import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBgI6cmgercE3RDL21wAAPkWpT6OiAX7Ck",
@@ -60,39 +66,72 @@
     };
 
     const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
     const auth = getAuth(app);
     const provider = new GoogleAuthProvider();
 
-    // The absolute safest way to catch a successful login
+    let redirecting = false;
+
+    function setAuthCookieAndRedirect(user) {
+        if (redirecting) return;
+        redirecting = true;
+        console.log("Auth state verified, UID:", user.uid);
+        const expiry = new Date();
+        expiry.setTime(expiry.getTime() + (7 * 24 * 60 * 60 * 1000));
+        document.cookie = `vg_uid=${user.uid};expires=${expiry.toUTCString()};path=/;SameSite=Lax`;
+        console.log("Cookie set, redirecting to dashboard...");
+        window.location.replace("{% url 'dashboard' %}");
+    }
+
+    function showError(msg) {
+        const errorEl = document.getElementById('error-message');
+        errorEl.textContent = msg;
+        errorEl.classList.remove('hidden');
+        redirecting = false;
+    }
+
+    // Handle redirect result (fires when returning from signInWithRedirect)
+    getRedirectResult(auth)
+        .then((result) => {
+            if (result && result.user) {
+                console.log("Redirect login succeeded!");
+                setAuthCookieAndRedirect(result.user);
+            }
+        })
+        .catch((error) => {
+            console.error("Redirect result error:", error.code, error.message);
+            showError(`Login Error: ${error.message}`);
+        });
+
+    // Listen for any persisted Firebase session on page load
     onAuthStateChanged(auth, (user) => {
         if (user) {
-            console.log("Auth state verified:", user.uid);
-            const expiry = new Date();
-            expiry.setTime(expiry.getTime() + (7 * 24 * 60 * 60 * 1000));
-            document.cookie = `vg_uid=${user.uid};expires=${expiry.toUTCString()};path=/`;
-            window.location.href = "{% url 'dashboard' %}";
+            console.log("Existing Firebase session found:", user.uid);
+            setAuthCookieAndRedirect(user);
+        } else {
+            console.log("No active Firebase session.");
         }
     });
 
     document.getElementById('google-login-btn').addEventListener('click', () => {
-        const errorEl = document.getElementById('error-message');
-        errorEl.classList.add('hidden');
-        
+        document.getElementById('error-message').classList.add('hidden');
+        redirecting = false;
+
         signInWithPopup(auth, provider)
             .then((result) => {
-                // Rely on onAuthStateChanged to handle the redirect
-                console.log("Popup succeeded!");
+                console.log("Popup sign-in succeeded, UID:", result.user.uid);
+                setAuthCookieAndRedirect(result.user);
             })
             .catch((error) => {
-                console.error("Popup failed:", error);
-                // Important: Only show error if they ACTUALLY failed, not if they just clicked 'X'
-                if (error.code !== 'auth/popup-closed-by-user') {
-                    errorEl.textContent = `Login Error: ${error.message}`;
-                    errorEl.classList.remove('hidden');
+                console.error("Popup failed:", error.code, error.message);
+                if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-cancelled') {
+                    console.log("Popup blocked, falling back to signInWithRedirect...");
+                    signInWithRedirect(auth, provider);
+                } else if (error.code === 'auth/popup-closed-by-user') {
+                    showError('Login window was closed. Please try again.');
+                } else if (error.code === 'auth/unauthorized-domain') {
+                    showError('This domain is not authorized in Firebase. Add it to Firebase Console → Authentication → Authorized domains.');
                 } else {
-                    errorEl.textContent = `Login window was closed. Try again when ready.`;
-                    errorEl.classList.remove('hidden');
+                    showError(`Login Error (${error.code}): ${error.message}`);
                 }
             });
     });

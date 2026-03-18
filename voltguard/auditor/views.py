@@ -274,6 +274,13 @@ def login_view(request):
         return redirect('dashboard')
     return render(request, 'login.html')
 
+def dev_login(request):
+    """Dev-only bypass: sets a local UID cookie and redirects to dashboard."""
+    response = redirect('dashboard')
+    expiry = 7 * 24 * 60 * 60  # 7 days in seconds
+    response.set_cookie('vg_uid', 'dev_user_local', max_age=expiry, path='/', samesite='Lax')
+    return response
+
 def logout_view(request):
     response = redirect('login')
     response.delete_cookie('vg_uid')
